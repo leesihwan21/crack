@@ -1,0 +1,115 @@
+{% extends 'layout.html' %}
+
+{% block content %}
+<div class="row justify-content-center mt-5">
+    <div class="col-md-11">
+
+        <!-- 관리자 메뉴 버튼 -->
+        <div class="d-flex gap-2 mb-3 flex-wrap">
+            <a href="/admin/dashboard" class="btn btn-dark btn-sm">
+                <i class="bi bi-gear-fill"></i> 제보 관리
+            </a>
+            <a href="/admin/stats" class="btn btn-outline-primary btn-sm">
+                <i class="bi bi-bar-chart-fill"></i> 통계 대시보드
+            </a>
+            <a href="/admin/bulk" class="btn btn-outline-success btn-sm">
+                <i class="bi bi-check2-square"></i> 일괄 처리
+            </a>
+            <a href="/admin/members" class="btn btn-outline-secondary btn-sm">
+                <i class="bi bi-people-fill"></i> 회원 관리
+            </a>
+            <a href="/map" class="btn btn-outline-info btn-sm">
+                <i class="bi bi-map-fill"></i> 지도 현황
+            </a>
+        </div>
+
+        <div class="card shadow border-0">
+            <div class="card-header bg-dark text-white py-3 d-flex justify-content-between align-items-center">
+                <h4 class="mb-0"><i class="bi bi-gear-fill"></i> ITS-Guard 통합 관리자 모드</h4>
+                <span class="badge bg-danger">ADMIN ONLY</span>
+            </div>
+            <div class="card-body p-4">
+                <h5 class="text-muted mb-4"><i class="bi bi-table"></i> 전체 도로 제보 및 처리 현황</h5>
+
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle border">
+                        <thead class="table-secondary">
+                            <tr>
+                                <th>제보자(ID)</th>
+                                <th>제보 위치</th>
+                                <th>위험도</th>
+                                <th>현재 상태</th>
+                                <th>상태 변경</th>
+                                <th>제보일</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for report in reports %}
+                            <tr>
+                                <td>
+                                    <strong>{{ report.reporter_name }}</strong><br>
+                                    <small class="text-muted">{{ report.reporter_id }}</small>
+                                </td>
+                                <td>{{ report.address if report.address else '좌표 제보' }}</td>
+                                <td>
+                                    {% if report.severity == 'High' %}
+                                        <span class="badge bg-danger text-white">매우위험</span>
+                                    {% elif report.severity == '높음' %}
+                                        <span class="badge bg-danger text-white">높음</span>
+                                    {% elif report.severity == '보통' %}
+                                        <span class="badge bg-warning text-dark">보통</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary text-white">{{ report.severity if report.severity else '보통' }}</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if report.status == '완료' or report.status == '처리완료' %}
+                                        <span class="text-success fw-bold">
+                                            <i class="bi bi-check-circle"></i> 처리완료
+                                        </span>
+                                    {% elif report.status == '검토중' %}
+                                        <span class="text-warning fw-bold">
+                                            <i class="bi bi-clock"></i> 검토중
+                                        </span>
+                                    {% elif report.status == '반려' %}
+                                        <span class="text-danger fw-bold">
+                                            <i class="bi bi-x-circle"></i> 반려
+                                        </span>
+                                    {% else %}
+                                        <span class="text-muted">{{ report.status }}</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <form action="/admin/update_status/{{ report.id }}" method="POST" class="d-flex gap-1">
+                                        <select name="status" class="form-select form-select-sm" style="width: 110px;">
+                                            <option value="검토중" {% if report.status =='검토중' %}selected{% endif %}>검토중</option>
+                                            <option value="완료" {% if report.status =='완료' %}selected{% endif %}>완료</option>
+                                            <option value="처리완료" {% if report.status =='처리완료' %}selected{% endif %}>처리완료</option>
+                                            <option value="반려" {% if report.status =='반려' %}selected{% endif %}>반려</option>
+                                        </select>
+                                        <button type="submit" class="btn btn-primary btn-sm">변경</button>
+                                    </form>
+                                </td>
+                                <td>
+                                    <small>{{ report.created_at.strftime('%Y-%m-%d') if report.created_at else '-' }}</small>
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="6" class="text-center py-5 text-muted">
+                                    등록된 제보 내역이 없습니다.
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="card-footer bg-white text-end">
+                <button class="btn btn-outline-secondary btn-sm" onclick="location.href='/'">홈으로</button>
+            </div>
+        </div>
+
+    </div>
+</div>
+{% endblock %}

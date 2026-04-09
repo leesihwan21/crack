@@ -1,0 +1,227 @@
+{% extends 'layout.html' %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="d-flex justify-content-between align-items-end mb-4 border-bottom pb-3">
+        <div>
+            <h1 class="fw-bold" style="letter-spacing: -1px;">
+                <i class="fas fa-satellite-dish text-warning me-2"></i>RoadEye <span class="text-secondary">AI Monitor</span>
+            </h1>
+            <p class="text-muted small mb-0 ms-5">
+                <i class="fas fa-check-circle text-success"></i> 지능형 도로 결함 통합 관제 시스템 가동 중
+            </p>
+        </div>
+
+        <div class="text-end">
+            <span class="badge bg-warning text-dark p-2 mb-2 shadow-sm">
+                <i class="fas fa-microchip me-1"></i> ITS-Guard v2.0 (High-Res Refined)
+            </span>
+            <p class="text-muted small mb-0">관제 요원: <strong>{{ session.get('user_name') }}</strong>님</p>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <div class="col-12">
+            <div class="card border-primary shadow-sm" style="background-color: #f8f9fa;">
+                <div class="card-body d-flex justify-content-between align-items-center py-4">
+                    <div>
+                        <h5 class="card-title mb-1 fw-bold">
+                            <i class="fas fa-location-arrow text-primary me-2"></i>실시간 도로 지킴이 (주행 모드)
+                        </h5>
+                        <p class="text-muted mb-0" id="location-status">GPS 위치를 기반으로 주변 100m 내 위험 요소를 실시간 감시합니다.</p>
+                    </div>
+                    <button class="btn btn-primary px-5 py-2 shadow-sm fw-bold" id="trackingBtn" onclick="startTracking()">
+                        <i class="fas fa-play me-2"></i>감시 시작
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6">
+            <div class="card p-4 shadow-sm h-100 border-0 bg-white">
+                <h5 class="card-title fw-bold mb-3"><i class="fas fa-file-upload text-dark me-2"></i>로컬 파일 분석</h5>
+                <p class="text-muted small">이미지 또는 블랙박스 영상을 업로드하여 즉시 분석합니다.</p>
+                <form id="analysisForm" action="/predict" method="post" enctype="multipart/form-data" onsubmit="return startAnalysis()">
+                    <input type="file" name="video" class="form-control mb-3" accept="video/*, image/*" required>
+                    <button type="submit" id="submitBtn" class="btn btn-dark w-100 py-2">분석 프로세스 가동</button>
+                </form>
+            </div>
+        </div>
+
+        <div class="col-md-6">
+            <div class="card p-4 shadow-sm h-100 border-0 bg-white">
+                <h5 class="card-title text-danger fw-bold mb-3"><i class="fab fa-youtube me-2"></i>유튜브 실시간 관제</h5>
+                <p class="text-muted small">스트리밍 주소를 입력하여 원격 도로 상황을 분석합니다.</p>
+                <input type="text" id="ytUrl" class="form-control mb-3" placeholder="https://www.youtube.com/watch?v=...">
+                <button type="button" onclick="startYoutubeAnalysis()" class="btn btn-outline-danger w-100 py-2">유튜브 스트림 연결</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="progress-container" class="mt-5 mb-5" style="display: {% if status == 'processing' %}block{% else %}none{% endif %};">
+        <div class="progress shadow-sm" style="height: 30px; border-radius: 15px;">
+            <div id="progress-bar" class="progress-bar progress-bar-striped progress-bar-animated bg-success fw-bold"
+                 role="progressbar" style="width: 0%;">0%</div>
+        </div>
+        <p id="progress-message" class="text-center mt-3 text-muted small fw-bold animate__animated animate__pulse animate__infinite">
+            AI 엔진이 데이터를 정밀 스캔하고 있습니다...
+        </p>
+    </div>
+
+    {% if result_video %}
+        {% endif %}
+</div>
+
+<script>
+// --- [기능 1: 실시간 위치 추적 및 알림] ---
+let lastNotifiedId = null;
+
+function startTracking() {
+    if (!("geolocation" in navigator)) { alert("GPS 정보를 사용할 수 없습니다."); return; }
+
+    Notification.requestPermission().then(permission => {
+        if (permission === "granted") {
+            const btn = document.getElementById('trackingBtn');
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>관제 중...';
+            btn.className = "btn btn-danger px-5 py-2 shadow-sm fw-bold";
+            document.getElementById('location-status').innerText = "위험 지역 진입 시 즉각적인 푸시 및 음성 알림을 발송합니다.";
+
+            navigator.geolocation.watchPosition(pos => {
+                fetch('/check_pothole', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ lat: pos.coords.latitude, lng: pos.coords.longitude })
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.status === "success" && data.count > 0) {
+                        const pothole = data.data[0];
+                        if (lastNotifiedId !== pothole.id) {
+                            triggerPushAlert(pothole.distance);
+                            lastNotifiedId = pothole.id;
+                        }
+                    }
+                });
+            }, null, { enableHighAccuracy: true });
+        } else {
+            alert("알림 권한이 거부되었습니다. 안전 알림을 받을 수 없습니다.");
+        }
+    });
+}
+
+function triggerPushAlert(distance) {
+    const dist = Math.round(distance * 1000);
+    new Notification("⚠️ RoadEye 경고: 도로 결함 탐지!", {
+        body: `전방 약 ${dist}m 지점에 포트홀/싱크홀이 있습니다. 안전 운전하세요!`,
+        icon: "/static/img/warning_icon.png"
+    });
+    const msg = new SpeechSynthesisUtterance(`전방 ${dist}미터 앞, 위험 구간입니다. 주의하세요.`);
+    msg.lang = 'ko-KR';
+    window.speechSynthesis.speak(msg);
+}
+
+// --- [기능 2: AI 분석 상태 모니터링] ---
+function monitorStatus() {
+    const interval = setInterval(() => {
+        fetch('/analysis_status_api')
+        .then(res => res.json())
+        .then(data => {
+            const bar = document.getElementById('progress-bar');
+            bar.style.width = data.percent + '%';
+            bar.innerText = data.percent + '%';
+            document.getElementById('progress-message').innerText = data.message;
+
+            if (data.percent >= 100) {
+                clearInterval(interval);
+                setTimeout(() => { location.href='/main'; }, 1500);
+            }
+        });
+    }, 1000);
+}
+
+function startAnalysis() {
+    document.getElementById('progress-container').style.display = 'block';
+    document.getElementById('submitBtn').disabled = true;
+    monitorStatus();
+    return true;
+}
+
+function startYoutubeAnalysis() {
+    const url = document.getElementById('ytUrl').value;
+    if(!url) { alert("유튜브 URL을 입력해 주세요."); return; }
+
+    fetch('/predict_youtube', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ url: url })
+    }).then(() => {
+        document.getElementById('progress-container').style.display = 'block';
+        monitorStatus();
+    });
+}
+</script>
+<footer class="bg-dark text-white pt-5 pb-4 mt-5">
+    <div class="container text-center text-md-start">
+        <div class="row text-center text-md-start">
+            <div class="col-md-4 col-lg-4 col-xl-4 mx-auto mt-3">
+                <h5 class="text-uppercase mb-4 font-weight-bold text-warning">🛰️ RoadEye AI Monitor</h5>
+                <p class="small text-white-50">
+                    AI 비전 기술을 활용하여 실시간 도로 결함을 탐지하고 안전한 주행 환경을 제공하는
+                    지능형 도로 인프라 관제 솔루션입니다.
+                </p>
+            </div>
+
+            <div class="col-md-2 col-lg-2 col-xl-2 mx-auto mt-3">
+                <h6 class="text-uppercase mb-4 font-weight-bold">QUICK LINKS</h6>
+                <p class="small"><a href="/main" class="text-white-50" style="text-decoration: none;">대시보드</a></p>
+                <p class="small"><a href="/history" class="text-white-50" style="text-decoration: none;">분석 이력</a></p>
+
+                <p class="small"><a href="#" class="text-white-50" style="text-decoration: none;" data-bs-toggle="modal"
+                                    data-bs-target="#privacyModal">개인정보처리방침</a></p>
+                <p class="small"><a href="#" class="text-white-50" style="text-decoration: none;" data-bs-toggle="modal"
+                                    data-bs-target="#termsModal">이용약관</a></p>
+            </div>
+
+            <div class="col-md-4 col-lg-3 col-xl-3 mx-auto mt-3">
+                <h6 class="text-uppercase mb-4 font-weight-bold">Technical Info</h6>
+                <p class="small text-white-50"><i class="fas fa-envelope me-2"></i> support@roadeye.ai</p>
+                <p class="small text-white-50"><i class="fas fa-code me-2"></i> YOLOv8 & Flask Engine</p>
+                <p class="small text-white-50"><i class="fas fa-tools me-2"></i> AI-X Smart Infrastructure Project</p>
+            </div>
+        </div>
+
+        <hr class="mb-4 mt-4 border-secondary">
+
+        <div class="row align-items-center">
+            <div class="col-md-7 col-lg-8 text-center text-md-start">
+                <p class="small mb-0 text-white-50">
+                    © 2026 <strong>RoadEye AI Monitor</strong>. All rights reserved.
+                </p>
+            </div>
+            <div class="col-md-5 col-lg-4 text-center text-md-end">
+                <a href="https://github.com" class="text-white me-4 text-decoration-none"><i class="fab fa-github"></i></a>
+                <a href="#" class="text-white me-4 text-decoration-none"><i class="fab fa-linkedin-in"></i></a>
+                <a href="#" class="text-white text-decoration-none"><i class="fas fa-share-alt"></i></a>
+            </div>
+        </div>
+    </div>
+    <div class="modal fade" id="privacyModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header bg-dark text-white">
+                    <h5 class="modal-title">개인정보처리방침</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body text-dark">
+                    <p>본 시스템은 <strong>RoadEye AI Monitor</strong> 연구 프로젝트의 일환으로 운영됩니다.</p>
+                    <ul>
+                        <li>수집 항목: GPS 위치 정보, 블랙박스 분석 영상</li>
+                        <li>수집 목적: 도로 결함 탐지 및 교통 인프라 유지관리</li>
+                        <li>보유 기간: 프로젝트 종료 시까지</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</footer>
+{% endblock %}

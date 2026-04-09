@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>도로 파손 제보</title>
+    <script src="//t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js"></script>
+    <style>
+        body { padding: 20px; font-family: 'Malgun Gothic', sans-serif; }
+        .input-group { margin-bottom: 15px; }
+        label { display: block; font-weight: bold; margin-bottom: 5px; }
+        input[type="text"], select { width: 300px; padding: 8px; border: 1px solid #ccc; }
+        .btn-submit { background-color: #e74c3c; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; font-size: 16px; }
+    </style>
+</head>
+<body>
+    <h2>🚨 도로 파손 제보하기</h2>
+
+    <form action="/report/submit" method="POST">
+
+        <div class="input-group">
+            <label>📍 위치 (주소):</label>
+            <input type="text" name="address" id="address" placeholder="주소 검색을 클릭하세요" readonly required>
+            <button type="button" onclick="openSearch()">주소 검색</button>
+        </div>
+
+        <input type="hidden" name="lat" id="lat" value="37.283">
+        <input type="hidden" name="lng" id="lng" value="127.045">
+
+        <div class="input-group">
+            <label>⚠️ 파손 상태:</label>
+            <select name="severity">
+                <option value="보통">보통 (소규모 균열)</option>
+                <option value="심함">심함 (중규모 포트홀)</option>
+                <option value="매우 심함">매우 심함 (타이어 파손 위험)</option>
+            </select>
+        </div>
+
+        <button type="submit" class="btn-submit">제보 완료하기</button>
+    </form>
+
+    <script>
+        function openSearch() {
+            new daum.Postcode({
+                oncomplete: function(data) {
+                    document.getElementById('address').value = data.address;
+                }
+            }).open();
+        }
+    </script>
+</body>
+</html>

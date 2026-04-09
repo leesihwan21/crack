@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>회원 관리 - ITS-Guard</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <style>
+        .table-hover tbody tr:hover { background-color: #f0f4ff; cursor: pointer; }
+        .badge-admin { background-color: #6f42c1; }
+    </style>
+</head>
+<body class="bg-light">
+
+<div class="container mt-4">
+
+    <!-- 헤더 -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h4>👥 회원 관리</h4>
+        <a href="/admin/dashboard" class="btn btn-outline-secondary btn-sm">← 관리자 홈</a>
+    </div>
+
+    <!-- 검색창 -->
+    <div class="card shadow-sm mb-3">
+        <div class="card-body d-flex gap-2">
+            <input type="text" id="search-input" class="form-control"
+                   placeholder="아이디 또는 이름으로 검색..."
+                   oninput="filterMembers()">
+            <select id="role-filter" class="form-select" style="max-width:150px" onchange="filterMembers()">
+                <option value="전체">전체</option>
+                <option value="admin">관리자</option>
+                <option value="user">일반회원</option>
+            </select>
+        </div>
+    </div>
+
+    <!-- 회원 목록 테이블 -->
+    <div class="card shadow-sm">
+        <div class="card-header bg-white d-flex justify-content-between align-items-center">
+            <h6 class="mb-0">📋 회원 목록</h6>
+            <span class="text-muted fs-6">전체 <span id="total-member-count">-</span>명</span>
+        </div>
+        <div class="card-body p-0">
+            <table class="table table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>ID</th>
+                        <th>아이디</th>
+                        <th>이름</th>
+                        <th>권한</th>
+                        <th>제보 수</th>
+                        <th>보유 포인트</th>
+                        <th>상태</th>
+                        <th>가입일</th>
+                        <th>관리</th>
+                    </tr>
+                </thead>
+                <tbody id="member-tbody">
+                    <tr>
+                        <td colspan="9" class="text-center text-muted py-4">데이터 로딩 중...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</div>
+
+<script>
+    var allMembers = [];
+
+    // 회원 목록 불러오기
+    fetch('/api/admin/members')
+        .then(res => res.json())
+        .then(result => {
+            if (!result.success) {
+                alert('데이터 로딩 실패: ' + result.message);
+                return;
+            }
+            allMembers = result.data;
+            document.getElementById('total-member-count').innerText = allMembers.length;
+            renderTable(allMembers);
+        })
+        .catch(err => console.error('데이터 로딩 실패:', err));
+
+    // 테이블 렌더링
+    function renderTable(members) {
+        var tbody = document.getElementById('member-tbody');
+
+        if (members.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="9" class="text-center text-muted py-4">회원이 없습니다.</td></tr>';
+            return;
+        }
+
+        tbody.innerHTML = members.map(m => `
+            <tr id="member-row-${m.id}">
+                <td>${m.id}</td>
+                <td><strong>${m.uid}</strong></td>
+                <td>${m.name}</td>
+                <td>
+                    ${m.role === 'admin'
+                        ? '<span class="badge badge-admin">관리자</span>'
+                        : '<span class="badge bg-secondary">일반회원</span>'
+                    }
+                </td>
+                <td>${m.report_count}건</td>
+                <td>${m.total_points} P</td>
+                <td id="status-${m.id}">
+                    ${m.is_active
+                        ? '<span class="badge bg-success">활성</span>'
+                        : '<span class="badge bg-danger">정지</span>'
+                    }
+                </td>
+                <td>${m.created_at}</td>
+                <td>
+                    ${m.role !== 'admin' ? `
+                    <button class="btn btn-sm ${m.is_active ? 'btn-outline-warning' : 'btn-outline-success'}"
+                            id="toggle-btn-${m.id}"
+                            onclick="toggleMember(${m.id}, ${m.is_active})">
+                        ${m.is_active ? '정지' : '활성화'}
+                    </button>
+                    <button class="btn btn-sm btn-outline-danger ms-1"
+                            onclick="deleteMember(${m.id}, '${m.uid}')">
+                        탈퇴
+                    </button>
+                    ` : '<span class="text-muted" style="font-size:0.8rem">-</span>'}
+                </td>
+            </tr>
+        `).join('');
+    }
+
+    // 검색 및 필터
+    function filterMembers() {
+        var keyword = document.getElementById('search-input').value.toLowerCase();
+        var role = document.getElementById('role-filter').value;
+
+        var filtered = allMembers.filter(m => {
+            var matchKeyword = m.uid.toLowerCase().includes(keyword) ||
+                               m.name.toLowerCase().includes(keyword);
+            var matchRole = role === '전체' || m.role === role;
+            return matchKeyword && matchRole;
+        });
+
+        document.getElementById('total-member-count').innerText = filtered.length;
+        renderTable(filtered);
+    }
+
+    // 회원 정지/활성화 토글
+    function toggleMember(id, isActive) {
+        var action = isActive ? '정지' : '활성화';
+        if (!confirm(`해당 회원을 ${action} 처리하시겠습니까?`)) return;
+
+        fetch(`/api/admin/members/${id}/toggle`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                // 상태 뱃지 업데이트
+                document.getElementById(`status-${id}`).innerHTML = data.is_active
+                    ? '<span class="badge bg-success">활성</span>'
+                    : '<span class="badge bg-danger">정지</span>';
+
+                // 버튼 텍스트 업데이트
+                var btn = document.getElementById(`toggle-btn-${id}`);
+                btn.innerText = data.is_active ? '정지' : '활성화';
+                btn.className = `btn btn-sm ${data.is_active ? 'btn-outline-warning' : 'btn-outline-success'}`;
+                btn.setAttribute('onclick', `toggleMember(${id}, ${data.is_active})`);
+
+                alert(`✅ ${action} 처리되었습니다.`);
+            } else {
+                alert('실패: ' + data.message);
+            }
+        })
+        .catch(err => alert('서버 통신 에러가 발생했습니다.'));
+    }
+
+    // 회원 탈퇴 처리
+    function deleteMember(id, uid) {
+        if (!confirm(`"${uid}" 회원을 탈퇴 처리하시겠습니까?\n모든 제보 내역도 함께 삭제됩니다.`)) return;
+
+        fetch(`/api/admin/members/${id}/delete`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                // 해당 행 삭제
+                document.getElementById(`member-row-${id}`).remove();
+                alert('✅ 탈퇴 처리되었습니다.');
+
+                // 전체 카운트 업데이트
+                allMembers = allMembers.filter(m => m.id !== id);
+                document.getElementById('total-member-count').innerText = allMembers.length;
+            } else {
+                alert('실패: ' + data.message);
+            }
+        })
+        .catch(err => alert('서버 통신 에러가 발생했습니다.'));
+    }
+</script>
+
+</body>
+</html>

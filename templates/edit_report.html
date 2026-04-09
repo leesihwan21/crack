@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>제보 수정 - ITS-Guard</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</head>
+<body class="bg-light">
+
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card shadow-sm">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0">✏️ 제보 수정</h5>
+                </div>
+                <div class="card-body">
+                    <form action="/report/edit/{{ report.id }}" method="POST">
+
+                        <!-- 주소 -->
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">📍 주소</label>
+                            <input type="text" name="address" class="form-control"
+                                   value="{{ report.address if report.address else '' }}"
+                                   placeholder="주소를 입력해주세요">
+                        </div>
+
+                        <!-- 파손 유형 -->
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">🚧 파손 유형</label>
+                            <select name="severity" class="form-select">
+                                <option value="낮음" {{ 'selected' if report.severity == '낮음' }}>낮음</option>
+                                <option value="보통" {{ 'selected' if report.severity == '보통' }}>보통</option>
+                                <option value="높음" {{ 'selected' if report.severity == '높음' }}>높음</option>
+                                <option value="매우높음" {{ 'selected' if report.severity == '매우높음' }}>매우높음</option>
+                            </select>
+                        </div>
+
+                        <!-- 현재 상태 (읽기 전용) -->
+                        <div class="mb-4">
+                            <label class="form-label fw-bold">📋 현재 상태</label>
+                            <input type="text" class="form-control" 
+                                   value="{{ report.status }}" disabled>
+                            <small class="text-muted">상태는 수정할 수 없습니다.</small>
+                        </div>
+
+                        <!-- 버튼 -->
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-primary w-100">수정 완료</button>
+                            <a href="/mypage" class="btn btn-outline-secondary w-100">취소</a>
+                        </div>
+
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+</body>
+</html>

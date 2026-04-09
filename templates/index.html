@@ -1,0 +1,37 @@
+{% extends 'layout.html' %}
+
+{% block content %}
+<div class="container-fluid p-0">
+    <div class="bg-dark text-white text-center py-5" style="background: linear-gradient(rgba(0,0,0,0.7), rgba(0,0,0,0.7)), url('/static/img/road_cover.jpg') no-repeat center center; background-size: cover; height: 80vh; display: flex; align-items: center;">
+        <div class="container">
+            <h1 class="display-2 fw-bold mb-4">🛡️ ITS-Guard</h1>
+            <p class="lead fs-3 mb-5">인공지능 YOLOv8 기반 실시간 도로 결함 탐지 시스템</p>
+            
+            <div class="d-grid gap-3 d-sm-flex justify-content-sm-center">
+                <a href="/login" class="btn btn-primary btn-lg px-5 gap-3">서비스 시작하기</a>
+                <a href="/join" class="btn btn-outline-light btn-lg px-5">회원가입</a>
+            </div>
+        </div>
+    </div>
+    
+    <div class="container py-5">
+        <div class="row text-center">
+            <div class="col-md-4">
+                <div class="fs-1 mb-2">📹</div>
+                <h3>실시간 분석</h3>
+                <p class="text-muted">블랙박스 영상 및 유튜브 스트리밍을 실시간으로 분석합니다.</p>
+            </div>
+            <div class="col-md-4">
+                <div class="fs-1 mb-2">🚨</div>
+                <h3>위험 알림</h3>
+                <p class="text-muted">포트홀 및 싱크홀 발견 시 즉각적인 시각/음성 알림을 제공합니다.</p>
+            </div>
+            <div class="col-md-4">
+                <div class="fs-1 mb-2">📊</div>
+                <h3>체계적 관리</h3>
+                <p class="text-muted">제보된 결함 데이터를 기반으로 보수 우선순위를 관리합니다.</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

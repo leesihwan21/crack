@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>통계 대시보드 - ITS-Guard</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        .stat-card { border-radius: 12px; padding: 20px; color: white; }
+        .card-blue  { background: linear-gradient(135deg, #0d6efd, #0dcaf0); }
+        .card-green { background: linear-gradient(135deg, #198754, #20c997); }
+        .card-yellow{ background: linear-gradient(135deg, #ffc107, #fd7e14); }
+        .card-red   { background: linear-gradient(135deg, #dc3545, #d63384); }
+    </style>
+</head>
+<body class="bg-light">
+
+<div class="container mt-4">
+
+    <!-- 헤더 -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h4>📊 관리자 통계 대시보드</h4>
+        <a href="/admin/dashboard" class="btn btn-outline-secondary btn-sm">← 관리자 홈</a>
+    </div>
+
+    <!-- 요약 카드 4개 -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-3">
+            <div class="stat-card card-blue shadow-sm">
+                <div class="fs-6 fw-bold">📋 전체 제보</div>
+                <div class="fs-2 fw-bold mt-1" id="total-count">-</div>
+                <div class="fs-6 opacity-75">건</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card card-green shadow-sm">
+                <div class="fs-6 fw-bold">✅ 처리 완료</div>
+                <div class="fs-2 fw-bold mt-1" id="done-count">-</div>
+                <div class="fs-6 opacity-75">건</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card card-yellow shadow-sm">
+                <div class="fs-6 fw-bold">⏳ 검토중</div>
+                <div class="fs-2 fw-bold mt-1" id="pending-count">-</div>
+                <div class="fs-6 opacity-75">건</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card card-red shadow-sm">
+                <div class="fs-6 fw-bold">📈 처리율</div>
+                <div class="fs-2 fw-bold mt-1" id="rate-count">-</div>
+                <div class="fs-6 opacity-75">%</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 차트 2개 -->
+    <div class="row g-3">
+
+        <!-- 월별 제보 건수 막대 차트 -->
+        <div class="col-md-8">
+            <div class="card shadow-sm">
+                <div class="card-header bg-white">
+                    <h6 class="mb-0">📅 월별 제보 건수 (최근 6개월)</h6>
+                </div>
+                <div class="card-body">
+                    <canvas id="monthlyChart" height="100"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- 상태별 현황 도넛 차트 -->
+        <div class="col-md-4">
+            <div class="card shadow-sm">
+                <div class="card-header bg-white">
+                    <h6 class="mb-0">📋 상태별 현황</h6>
+                </div>
+                <div class="card-body">
+                    <canvas id="statusChart" height="200"></canvas>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<script>
+    // API 호출
+    fetch('/api/admin/stats')
+        .then(res => res.json())
+        .then(data => {
+            if (!data.success) {
+                alert('데이터 로딩 실패: ' + data.message);
+                return;
+            }
+
+            // 요약 카드 업데이트
+            document.getElementById('total-count').innerText = data.total;
+            document.getElementById('done-count').innerText = data.done;
+            document.getElementById('pending-count').innerText = data.pending;
+            document.getElementById('rate-count').innerText = data.rate;
+
+            // 월별 차트 데이터
+            var months = data.monthly.map(d => d.month);
+            var counts = data.monthly.map(d => d.count);
+
+            // 월별 막대 차트
+            new Chart(document.getElementById('monthlyChart'), {
+                type: 'bar',
+                data: {
+                    labels: months,
+                    datasets: [{
+                        label: '제보 건수',
+                        data: counts,
+                        backgroundColor: 'rgba(13, 110, 253, 0.7)',
+                        borderColor: 'rgba(13, 110, 253, 1)',
+                        borderWidth: 1,
+                        borderRadius: 6
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: { display: false }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: { stepSize: 1 }
+                        }
+                    }
+                }
+            });
+
+            // 상태별 도넛 차트
+            var statusLabels = data.status_stats.map(d => d.status);
+            var statusCounts = data.status_stats.map(d => d.count);
+            var statusColors = statusLabels.map(s => {
+                if (s === '검토중') return '#FFC107';
+                if (s === '완료' || s === '처리완료') return '#198754';
+                if (s === '반려') return '#DC3545';
+                return '#6C757D';
+            });
+
+            new Chart(document.getElementById('statusChart'), {
+                type: 'doughnut',
+                data: {
+                    labels: statusLabels,
+                    datasets: [{
+                        data: statusCounts,
+                        backgroundColor: statusColors,
+                        borderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: { font: { size: 12 } }
+                        }
+                    }
+                }
+            });
+        })
+        .catch(err => console.error('에러:', err));
+</script>
+
+</body>
+</html>
