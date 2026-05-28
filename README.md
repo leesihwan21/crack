@@ -11,6 +11,7 @@ YOLOv8 기반 이미지 균열(Crack) 탐지 웹 애플리케이션입니다.
 - HTML/CSS
 
 ## 📂 프로젝트 구조
+\```
 crack/
 ├── common/       # 공통 모듈
 ├── domain/       # 도메인 로직
@@ -20,6 +21,7 @@ crack/
 ├── app.py        # Flask 메인 앱
 ├── main.py       # 실행 파일
 └── best.pt       # YOLOv8 학습 모델
+\```
 
 ## ⚙️ 실행 방법
 pip install -r requirements.txt
